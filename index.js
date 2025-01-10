@@ -3,9 +3,11 @@ const app = express();
 const cors = require("cors");
 const { connectToMongodb } = require("./database-connections/mongoose");
 const { connectToRedis } = require("./database-connections/redis");
-require("dotenv").config();
 const userRouter = require("./routes/user");
+const focusSessionRouter = require("./routes/focusSession")
+require("dotenv").config();
 const { rateLimiter } = require("./middlewares/apiRateLimiter");
+
 
 const port = process.env.PORT || 5000;
 
@@ -26,6 +28,7 @@ app.use(rateLimiter)
 
 //routes
 app.use("/api/users",userRouter)
+app.use("/api/focus-sessions",focusSessionRouter)
 
 app.get("/",async(req,res)=>{
     res.send("Promodoro server is running")
