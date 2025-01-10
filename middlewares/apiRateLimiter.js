@@ -3,7 +3,7 @@ require("dotenv").config();
 const redisClient = Redis.createClient({
   url: process.env.REDIS_URL
 });
-const RATELIMIT_DURATION_IN_SECONDS = 10;
+const RATELIMIT_DURATION_IN_SECONDS = 60;
 const NUMBER_OF_REQUESTS_ALLOWED = 5;
 
 // Initialize Redis connection
@@ -43,7 +43,7 @@ module.exports = {
       if (parseInt(result["count"], 10) >= NUMBER_OF_REQUESTS_ALLOWED) {
         return res.status(429).send({
           success: false,
-          message: "User rate-limited",
+          message: "Too many requests.Wait a few moments and try again!",
         });
       }
 
