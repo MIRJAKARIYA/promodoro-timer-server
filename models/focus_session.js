@@ -11,7 +11,10 @@ const focusSessionSchema = new mongoose.Schema(
     },
   },
   {
-    timestamps: true,
+    timestamps: {
+        createdAt: true,
+        updatedAt: false, // Disable the `updatedAt` field
+      },
   }
 );
 

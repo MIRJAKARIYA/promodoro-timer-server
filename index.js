@@ -5,6 +5,7 @@ const { connectToMongodb } = require("./database-connections/mongoose");
 const { connectToRedis } = require("./database-connections/redis");
 const userRouter = require("./routes/user");
 const focusSessionRouter = require("./routes/focusSession")
+const currentLongestStreaksRouter = require("./routes/streak")
 require("dotenv").config();
 const { rateLimiter } = require("./middlewares/apiRateLimiter");
 
@@ -28,7 +29,8 @@ app.use(rateLimiter)
 
 //routes
 app.use("/api/users",userRouter)
-app.use("/api/focus-sessions",focusSessionRouter)
+app.use("/api/focus-session",focusSessionRouter)
+app.use("/api/current-longest-streaks",currentLongestStreaksRouter)
 
 app.get("/",async(req,res)=>{
     res.send("Promodoro server is running")
