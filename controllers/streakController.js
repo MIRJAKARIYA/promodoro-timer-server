@@ -1,9 +1,22 @@
 const focusSessions = require("../models/focus_session");
+const Redis = require("redis");
+require("dotenv").config();
+const redisClient = Redis.createClient({
+  url: process.env.REDIS_URL
+});
+(async () => {
+  await redisClient.connect();
+})();
 
 const getUserSpecificCurrentAndLongestStreak = async (req, res) => {
   const id = req.params.id;
+  const userData = await redisClient.get(`${id}-${new Date().toLocaleDateString()}`)
+  console.log(userData)
+  if(userData){
+    return res.send({success:true,data:JSON.parse(userData)})
+  }
   try {
-   
+    
     const streaks = await focusSessions.aggregate([
       {
         $match: {
@@ -101,18 +114,22 @@ const getUserSpecificCurrentAndLongestStreak = async (req, res) => {
       },
     ]);
 
+    let streakData = []
+
     if (streaks[0].currentStreak >= streaks[0].longestStreak) {
-      return res.send({
-        success: true,
-        data: [{
-            currentStreak:streaks[0].currentStreak,
-            longestStreak:streaks[0].currentStreak
-        }],
-      });
+       streakData = [{
+        currentStreak:streaks[0].currentStreak,
+        longestStreak:streaks[0].currentStreak
+    }]
     }
     else{
-        return res.send({ success: true, data: streaks });
+      streakData = streaks
     }
+    redisClient.SETEX(`${id}-${new Date().toLocaleDateString()}`,3600,JSON.stringify(streakData))
+    return res.send({
+      success: true,
+      data: streakData,
+    });
 
     
   } catch (err) {

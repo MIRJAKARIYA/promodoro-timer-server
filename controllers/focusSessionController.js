@@ -13,8 +13,7 @@ const getAllFocusSessions = async (req, res) => {
 const createFocusSession = async (req, res) => {
   const data = req.body;
 
-  const { user_id, duration } = data;
-
+  const { user_id, duration} = data;
   if (!user_id || !duration) {
     return res.send({ success: false, message: "All fields are required" });
   }
