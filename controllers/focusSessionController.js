@@ -9,7 +9,7 @@ const redisClient = Redis.createClient({
 })();
 
 const getAllFocusSessions = async (req, res) => {
-  console.log(getAllFocusSessions);
+
   try {
     const allFocusSessions = await focusSessions.find({});
     return res.send({ success: true, data: allFocusSessions });

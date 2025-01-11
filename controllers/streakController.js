@@ -11,7 +11,6 @@ const redisClient = Redis.createClient({
 const getUserSpecificCurrentAndLongestStreak = async (req, res) => {
   const id = req.params.id;
   const userData = await redisClient.get(`${id}-${new Date().toLocaleDateString()}`)
-  console.log(userData)
   if(userData){
     return res.send({success:true,data:JSON.parse(userData)})
   }
