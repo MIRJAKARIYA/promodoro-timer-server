@@ -1,4 +1,12 @@
 const focusSessions = require("../models/focus_session");
+const Redis = require("redis");
+require("dotenv").config();
+const redisClient = Redis.createClient({
+  url: process.env.REDIS_URL
+});
+(async () => {
+  await redisClient.connect();
+})();
 
 const getAllFocusSessions = async (req, res) => {
   console.log(getAllFocusSessions);
@@ -22,6 +30,8 @@ const createFocusSession = async (req, res) => {
       user_id,
       duration,
     });
+   await redisClient.SETEX(`dataInserted-${user_id}`,3600,"1")
+
     res.send({ success: true, data: result });
   } catch (err) {
     res.send({ success: false, message: err.message });
@@ -30,69 +40,76 @@ const createFocusSession = async (req, res) => {
 
 const getUserSpecificFocusMetrics = async (req, res) => {
   const id = req.params.id;
+  const cachedFocusSessions = await redisClient.get(`focusSessions-${id}-${new Date().toLocaleDateString()}`)
+  const isInserted = await redisClient.get(`dataInserted-${id}`)
+  if(!isInserted && cachedFocusSessions){
+    return res.send({success:true,data:JSON.parse(cachedFocusSessions)})
+  }
+  if(parseInt(isInserted)===0 && cachedFocusSessions){
+    return res.send({success:true,data:JSON.parse(cachedFocusSessions)})
+  }
   try {
     const specificSessions = await focusSessions.aggregate([
-        {
-          $facet: {
-            dailyMetrics: [
-              {
-                $match: {
-                  user_id: id,
-                  createdAt: {
-                    $gte: new Date(new Date().setHours(0, 0, 0, 0)),
-                    $lt: new Date(new Date().setHours(24, 0, 0, 0)),
-                  },
+      {
+        $facet: {
+          dailyMetrics: [
+            {
+              $match: {
+                user_id: id,
+                createdAt: {
+                  $gte: new Date(new Date().setHours(0, 0, 0, 0)), // Start of today
+                  $lt: new Date(new Date().setHours(24, 0, 0, 0)), // Start of tomorrow
                 },
               },
-              {
-                $group: {
-                  _id: null,
-                  dailyNumberOfSessions: { $sum: 1 },
-                  dailySummation: { $sum: "$duration" },
+            },
+            {
+              $group: {
+                _id: null,
+                dailyNumberOfSessions: { $sum: 1 },
+                dailySummation: { $sum: "$duration" },
+              },
+            },
+          ],
+          weeklyMetrics: [
+            {
+              $match: {
+                user_id: id,
+                createdAt: {
+                  $gte: (() => {
+                    const today = new Date();
+                    const startOfLast7Days = new Date(
+                      today.getFullYear(),
+                      today.getMonth(),
+                      today.getDate() - 6 // Start 7 days ago, including today
+                    );
+                    startOfLast7Days.setHours(0, 0, 0, 0); // Start of the day 7 days ago
+                    return startOfLast7Days;
+                  })(),
+                  $lt: new Date(new Date().setHours(24, 0, 0, 0)), // Start of tomorrow
                 },
               },
-            ],
-            weeklyMetrics: [
-              {
-                $match: {
-                  user_id: id,
-                  createdAt: {
-                    $gte: (() => {
-                      const today = new Date();
-                      const dayOfWeek = today.getDay(); 
-                      const daysSinceSaturday = dayOfWeek === 6 ? 0 : dayOfWeek + 1;
-                      const startOfWeek = new Date(
-                        today.getFullYear(),
-                        today.getMonth(),
-                        today.getDate() - daysSinceSaturday
-                      );
-                      startOfWeek.setHours(0, 0, 0, 0);
-                      return startOfWeek;
-                    })(),
-                    $lt: new Date(new Date().setHours(24, 0, 0, 0)),
-                  },
-                },
+            },
+            {
+              $group: {
+                _id: null,
+                weeklyNumberOfSessions: { $sum: 1 },
+                weeklySummation: { $sum: "$duration" },
               },
-              {
-                $group: {
-                  _id: null,
-                  weeklyNumberOfSessions: { $sum: 1 },
-                  weeklySummation: { $sum: "$duration" },
-                },
-              },
-            ],
-          },
+            },
+          ],
         },
-        {
-          $project: {
-            dailyNumberOfSessions: { $arrayElemAt: ["$dailyMetrics.dailyNumberOfSessions", 0] },
-            dailySummation: { $arrayElemAt: ["$dailyMetrics.dailySummation", 0] },
-            weeklyNumberOfSessions: { $arrayElemAt: ["$weeklyMetrics.weeklyNumberOfSessions", 0] },
-            weeklySummation: { $arrayElemAt: ["$weeklyMetrics.weeklySummation", 0] },
-          },
+      },
+      {
+        $project: {
+          dailyNumberOfSessions: { $arrayElemAt: ["$dailyMetrics.dailyNumberOfSessions", 0] },
+          dailySummation: { $arrayElemAt: ["$dailyMetrics.dailySummation", 0] },
+          weeklyNumberOfSessions: { $arrayElemAt: ["$weeklyMetrics.weeklyNumberOfSessions", 0] },
+          weeklySummation: { $arrayElemAt: ["$weeklyMetrics.weeklySummation", 0] },
         },
-      ]);
-      console.log(specificSessions)
+      },
+    ]);
+      await redisClient.SETEX(`focusSessions-${id}-${new Date().toLocaleDateString()}`,3600,JSON.stringify(specificSessions))
+      await redisClient.SETEX(`dataInserted-${id}`,3600,"0")
       
     return res.send({ success: true, data: specificSessions });
   } catch (err) {
@@ -100,7 +117,7 @@ const getUserSpecificFocusMetrics = async (req, res) => {
   }
 };
 
-//data will be like this {data:JSON.stringify(data),prevInserted:0,newInserted:0}
+//data will be like this {data:JSON.stringify(data),newData:0}
 // prothome dekhte hobe hget (userId) kore je data ache kina
 // na thakle prothom dhape hset (userId hobe key er maan) korte hobe {data:JSON.stringify(data),prevInserted:0,newInserted:0}
 // data insert hoile newInserted er man ek baraite hobe {data:JSON.stringify(data),prevInserted:0,newInserted:1}
