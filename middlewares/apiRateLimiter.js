@@ -3,8 +3,8 @@ require("dotenv").config();
 const redisClient = Redis.createClient({
   url: process.env.REDIS_URL
 });
-const RATELIMIT_DURATION_IN_SECONDS =10 ;
-const NUMBER_OF_REQUESTS_ALLOWED = 2;
+const RATELIMIT_DURATION_IN_SECONDS =60 ;
+const NUMBER_OF_REQUESTS_ALLOWED = 20;
 
 // Initialize Redis connection
 (async () => {

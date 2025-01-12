@@ -20,7 +20,7 @@ const getAllFocusSessions = async (req, res) => {
 
 const createFocusSession = async (req, res) => {
   const data = req.body;
-
+console.log("post api called",data)
   const { user_id, duration} = data;
   if (!user_id || !duration) {
     return res.send({ success: false, message: "All fields are required" });
@@ -40,6 +40,7 @@ const createFocusSession = async (req, res) => {
 
 const getUserSpecificFocusMetrics = async (req, res) => {
   const id = req.params.id;
+  console.log(id)
   const cachedFocusSessions = await redisClient.get(`focusSessions-${id}-${new Date().toLocaleDateString()}`)
   const isInserted = await redisClient.get(`dataInserted-${id}`)
   if(!isInserted && cachedFocusSessions){
@@ -49,43 +50,80 @@ const getUserSpecificFocusMetrics = async (req, res) => {
     return res.send({success:true,data:JSON.parse(cachedFocusSessions)})
   }
   try {
+    // const specificSessions = await focusSessions.aggregate([
+    //   {
+    //     $facet: {
+    //       dailyMetrics: [
+    //         {
+    //           $match: {
+    //             user_id: id,
+    //             createdAt: {
+    //               $gte: new Date(new Date().setHours(0, 0, 0, 0)), // Start of today
+    //               $lt: new Date(new Date().setHours(24, 0, 0, 0)), // Start of tomorrow
+    //             },
+    //           },
+    //         },
+    //         {
+    //           $group: {
+    //             _id: null,
+    //             dailyNumberOfSessions: { $sum: 1 },
+    //             dailySummation: { $sum: "$duration" },
+    //           },
+    //         },
+    //       ],
+    //       weeklyMetrics: [
+    //         {
+    //           $match: {
+    //             user_id: id,
+    //             createdAt: {
+    //               $gte: (() => {
+    //                 const today = new Date();
+    //                 const startOfLast7Days = new Date(
+    //                   today.getFullYear(),
+    //                   today.getMonth(),
+    //                   today.getDate() - 6 // Start 7 days ago, including today
+    //                 );
+    //                 startOfLast7Days.setHours(0, 0, 0, 0); // Start of the day 7 days ago
+    //                 return startOfLast7Days;
+    //               })(),
+    //               $lt: new Date(new Date().setHours(24, 0, 0, 0)), // Start of tomorrow
+    //             },
+    //           },
+    //         },
+    //         {
+    //           $group: {
+    //             _id: null,
+    //             weeklyNumberOfSessions: { $sum: 1 },
+    //             weeklySummation: { $sum: "$duration" },
+    //           },
+    //         },
+    //       ],
+    //     },
+    //   },
+    //   {
+    //     $project: {
+    //       dailyNumberOfSessions: { $arrayElemAt: ["$dailyMetrics.dailyNumberOfSessions", 0] },
+    //       dailySummation: { $arrayElemAt: ["$dailyMetrics.dailySummation", 0] },
+    //       weeklyNumberOfSessions: { $arrayElemAt: ["$weeklyMetrics.weeklyNumberOfSessions", 0] },
+    //       weeklySummation: { $arrayElemAt: ["$weeklyMetrics.weeklySummation", 0] },
+    //     },
+    //   },
+    // ]);
+
+
+
+
     const specificSessions = await focusSessions.aggregate([
       {
         $facet: {
-          dailyMetrics: [
-            {
-              $match: {
-                user_id: id,
-                createdAt: {
-                  $gte: new Date(new Date().setHours(0, 0, 0, 0)), // Start of today
-                  $lt: new Date(new Date().setHours(24, 0, 0, 0)), // Start of tomorrow
-                },
-              },
-            },
-            {
-              $group: {
-                _id: null,
-                dailyNumberOfSessions: { $sum: 1 },
-                dailySummation: { $sum: "$duration" },
-              },
-            },
-          ],
+          // Weekly Metrics (Last 8 days)
           weeklyMetrics: [
             {
               $match: {
-                user_id: id,
+                user_id: id, // Replace `id` with the actual user_id you're querying for
                 createdAt: {
-                  $gte: (() => {
-                    const today = new Date();
-                    const startOfLast7Days = new Date(
-                      today.getFullYear(),
-                      today.getMonth(),
-                      today.getDate() - 6 // Start 7 days ago, including today
-                    );
-                    startOfLast7Days.setHours(0, 0, 0, 0); // Start of the day 7 days ago
-                    return startOfLast7Days;
-                  })(),
-                  $lt: new Date(new Date().setHours(24, 0, 0, 0)), // Start of tomorrow
+                  $gte: new Date(new Date().setDate(new Date().getDate() - 7)), // 8 days ago from today
+                  $lt: new Date(new Date().setHours(24, 0, 0, 0)), // End of today (exclusive)
                 },
               },
             },
@@ -97,17 +135,150 @@ const getUserSpecificFocusMetrics = async (req, res) => {
               },
             },
           ],
+          // Last 8 Days with Zero Filling
+          last8DaysMetrics: [
+            {
+              $match: {
+                user_id: id,
+                createdAt: {
+                  $gte: new Date(new Date().setDate(new Date().getDate() - 7)), // 8 days ago
+                  $lt: new Date(new Date().setHours(24, 0, 0, 0)), // End of today (exclusive)
+                },
+              },
+            },
+            {
+              $group: {
+                _id: {
+                  date: {
+                    $dateToString: { format: "%Y-%m-%d", date: "$createdAt" }, // Group by date
+                  },
+                },
+                dayNumberOfSessions: { $sum: 1 },
+                daySummation: { $sum: "$duration" },
+              },
+            },
+            {
+              $sort: { "_id.date": 1 }, // Sort by date
+            },
+          ],
         },
       },
       {
         $project: {
-          dailyNumberOfSessions: { $arrayElemAt: ["$dailyMetrics.dailyNumberOfSessions", 0] },
-          dailySummation: { $arrayElemAt: ["$dailyMetrics.dailySummation", 0] },
           weeklyNumberOfSessions: { $arrayElemAt: ["$weeklyMetrics.weeklyNumberOfSessions", 0] },
           weeklySummation: { $arrayElemAt: ["$weeklyMetrics.weeklySummation", 0] },
+          last8Days: {
+            $map: {
+              input: {
+                $range: [0, 8], // Generate numbers 0 to 7 for the last 8 days
+              },
+              as: "dayOffset",
+              in: {
+                date: {
+                  $dateToString: {
+                    format: "%Y-%m-%d",
+                    date: {
+                      $dateSubtract: {
+                        startDate: new Date(), // Today's date
+                        unit: "day",
+                        amount: { $subtract: [7, "$$dayOffset"] }, // Subtract dynamic offset for the last 8 days
+                      },
+                    },
+                  },
+                },
+                dayNumberOfSessions: {
+                  $ifNull: [
+                    {
+                      $let: {
+                        vars: {
+                          session: {
+                            $arrayElemAt: [
+                              {
+                                $filter: {
+                                  input: "$last8DaysMetrics",
+                                  as: "metric",
+                                  cond: {
+                                    $eq: ["$$metric._id.date", {
+                                      $dateToString: {
+                                        format: "%Y-%m-%d",
+                                        date: {
+                                          $dateSubtract: {
+                                            startDate: new Date(),
+                                            unit: "day",
+                                            amount: { $subtract: [7, "$$dayOffset"] },
+                                          },
+                                        },
+                                      },
+                                    }],
+                                  },
+                                },
+                              },
+                              0,
+                            ],
+                          },
+                        },
+                        in: {
+                          $ifNull: ["$$session.dayNumberOfSessions", 0],
+                        },
+                      },
+                    },
+                    0,
+                  ],
+                },
+                daySummation: {
+                  $ifNull: [
+                    {
+                      $let: {
+                        vars: {
+                          session: {
+                            $arrayElemAt: [
+                              {
+                                $filter: {
+                                  input: "$last8DaysMetrics",
+                                  as: "metric",
+                                  cond: {
+                                    $eq: ["$$metric._id.date", {
+                                      $dateToString: {
+                                        format: "%Y-%m-%d",
+                                        date: {
+                                          $dateSubtract: {
+                                            startDate: new Date(),
+                                            unit: "day",
+                                            amount: { $subtract: [7, "$$dayOffset"] },
+                                          },
+                                        },
+                                      },
+                                    }],
+                                  },
+                                },
+                              },
+                              0,
+                            ],
+                          },
+                        },
+                        in: {
+                          $ifNull: ["$$session.daySummation", 0],
+                        },
+                      },
+                    },
+                    0,
+                  ],
+                },
+              },
+            },
+          },
         },
       },
     ]);
+    
+
+    
+
+
+    
+    
+
+    
       await redisClient.SETEX(`focusSessions-${id}-${new Date().toLocaleDateString()}`,3600,JSON.stringify(specificSessions))
       await redisClient.SETEX(`dataInserted-${id}`,3600,"0")
       

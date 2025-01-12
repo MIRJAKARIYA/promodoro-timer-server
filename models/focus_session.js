@@ -1,4 +1,6 @@
 const mongoose = require('mongoose');
+
+
 const focusSessionSchema = new mongoose.Schema(
   {
     user_id: {
@@ -9,14 +11,18 @@ const focusSessionSchema = new mongoose.Schema(
       type: Number,
       required: [true, 'Duration is required'],
     },
+    createdAt: { type: Date, default: Date.now }
   },
-  {
-    timestamps: {
-        createdAt: true,
-        updatedAt: false, // Disable the `updatedAt` field
-      },
-  }
 );
+
+focusSessionSchema.pre('save', function (next) {
+  if (this.isNew) {
+    const date = new Date(this.createdAt);
+    date.setHours(0, 0, 0, 0); // Set time to 00:00:00
+    this.createdAt = date;
+  }
+  next();
+});
 
 const focusSessions = mongoose.model('focusSessions', focusSessionSchema);
 

@@ -1,12 +1,14 @@
 const User = require("../models/user");
 
-const getAllUsers = async (req, res) => {
-  const users = await User.find({});
-  return res.send({ success: true, data: users });
+const getUser = async (req, res) => {
+  const email = req.params.email
+  const user = await User.find({email:email});
+  return res.send({ success: true, data: user[0] });
 };
 
 const createANewUser = async (req, res) => {
   const data = req.body;
+  console.log(data)
   const { name, email, avatar_url } = data;
   if (!name || !email || !avatar_url) {
     return res.send({
@@ -14,7 +16,7 @@ const createANewUser = async (req, res) => {
       err: "Please provide all the necessary data",
     });
   }
-  const result =await User.create({
+  const result = await User.create({
     name,
     email,
     avatar_url
@@ -22,6 +24,6 @@ const createANewUser = async (req, res) => {
   res.send({success:true,data:result})
 };
 module.exports = {
-  getAllUsers,
+  getUser,
   createANewUser
 };

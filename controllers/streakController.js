@@ -10,6 +10,7 @@ const redisClient = Redis.createClient({
 
 const getUserSpecificCurrentAndLongestStreak = async (req, res) => {
   const id = req.params.id;
+  console.log(id)
   const userData = await redisClient.get(`${id}-${new Date().toLocaleDateString()}`)
   if(userData){
     return res.send({success:true,data:JSON.parse(userData)})
@@ -112,7 +113,10 @@ const getUserSpecificCurrentAndLongestStreak = async (req, res) => {
         },
       },
     ]);
-
+console.log("streaks",streaks)
+if(streaks.length ===0){
+  return res.send({success:true,data:[]})
+}
     let streakData = []
 
     if (streaks[0].currentStreak >= streaks[0].longestStreak) {
