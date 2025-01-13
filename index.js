@@ -7,7 +7,6 @@ const userRouter = require("./routes/user");
 const focusSessionRouter = require("./routes/focusSession")
 const currentLongestStreaksRouter = require("./routes/streak")
 require("dotenv").config();
-// const { rateLimiter } = require("./middlewares/apiRateLimiter");
 
 
 const port = process.env.PORT || 5000;
@@ -25,9 +24,7 @@ connectToRedis()
 // middlewares
 app.use(cors());
 app.use(express.json());
-// app.use(rateLimiter)
 
-//routes
 app.use("/api/users",userRouter)
 app.use("/api/focus-session",focusSessionRouter)
 app.use("/api/current-longest-streaks",currentLongestStreaksRouter)

@@ -8,7 +8,6 @@ const getUser = async (req, res) => {
 
 const createANewUser = async (req, res) => {
   const data = req.body;
-  console.log(data)
   const { name, email, avatar_url } = data;
   if (!name || !email || !avatar_url) {
     return res.send({

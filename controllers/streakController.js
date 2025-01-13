@@ -10,7 +10,7 @@ const redisClient = Redis.createClient({
 
 const getUserSpecificCurrentAndLongestStreak = async (req, res) => {
   const id = req.params.id;
-  console.log(id)
+
   const userData = await redisClient.get(`${id}-${new Date().toLocaleDateString()}`)
   if(userData){
     return res.send({success:true,data:JSON.parse(userData)})
@@ -113,7 +113,6 @@ const getUserSpecificCurrentAndLongestStreak = async (req, res) => {
         },
       },
     ]);
-console.log("streaks",streaks)
 if(streaks.length ===0){
   return res.send({success:true,data:[]})
 }
@@ -128,7 +127,7 @@ if(streaks.length ===0){
     else{
       streakData = streaks
     }
-    redisClient.SETEX(`${id}-${new Date().toLocaleDateString()}`,3600,JSON.stringify(streakData))
+    redisClient.SETEX(`${id}-${new Date().toLocaleDateString()}`,600,JSON.stringify(streakData))
     return res.send({
       success: true,
       data: streakData,
@@ -141,10 +140,6 @@ if(streaks.length ===0){
 };
 
 
-//caching data
-// key = todays date
-// todays date jodi redis a paoa jai tar mane data agei cache kora ache.redis theke niye diye dao.module
-// na paoa gele bojhte hobe next day ashche.taile todays date update kore noton data rakhte hobe.
 module.exports = {
   getUserSpecificCurrentAndLongestStreak,
 };
