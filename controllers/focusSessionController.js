@@ -116,14 +116,13 @@ const getUserSpecificFocusMetrics = async (req, res) => {
     const specificSessions = await focusSessions.aggregate([
       {
         $facet: {
-          // Weekly Metrics (Last 8 days)
           weeklyMetrics: [
             {
               $match: {
-                user_id: id, // Replace `id` with the actual user_id you're querying for
+                user_id: id, 
                 createdAt: {
-                  $gte: new Date(new Date().setDate(new Date().getDate() - 7)), // 8 days ago from today
-                  $lt: new Date(new Date().setHours(24, 0, 0, 0)), // End of today (exclusive)
+                  $gte: new Date(new Date().setDate(new Date().getDate() - 7)), 
+                  $lt: new Date(new Date().setHours(24, 0, 0, 0)),
                 },
               },
             },
@@ -135,14 +134,13 @@ const getUserSpecificFocusMetrics = async (req, res) => {
               },
             },
           ],
-          // Last 8 Days with Zero Filling
           last8DaysMetrics: [
             {
               $match: {
                 user_id: id,
                 createdAt: {
-                  $gte: new Date(new Date().setDate(new Date().getDate() - 7)), // 8 days ago
-                  $lt: new Date(new Date().setHours(24, 0, 0, 0)), // End of today (exclusive)
+                  $gte: new Date(new Date().setDate(new Date().getDate() - 7)), 
+                  $lt: new Date(new Date().setHours(24, 0, 0, 0)),
                 },
               },
             },
@@ -150,7 +148,7 @@ const getUserSpecificFocusMetrics = async (req, res) => {
               $group: {
                 _id: {
                   date: {
-                    $dateToString: { format: "%Y-%m-%d", date: "$createdAt" }, // Group by date
+                    $dateToString: { format: "%Y-%m-%d", date: "$createdAt" }, 
                   },
                 },
                 dayNumberOfSessions: { $sum: 1 },
@@ -158,7 +156,7 @@ const getUserSpecificFocusMetrics = async (req, res) => {
               },
             },
             {
-              $sort: { "_id.date": 1 }, // Sort by date
+              $sort: { "_id.date": 1 }, 
             },
           ],
         },
@@ -170,7 +168,7 @@ const getUserSpecificFocusMetrics = async (req, res) => {
           last8Days: {
             $map: {
               input: {
-                $range: [0, 8], // Generate numbers 0 to 7 for the last 8 days
+                $range: [0, 8], 
               },
               as: "dayOffset",
               in: {
@@ -179,9 +177,9 @@ const getUserSpecificFocusMetrics = async (req, res) => {
                     format: "%Y-%m-%d",
                     date: {
                       $dateSubtract: {
-                        startDate: new Date(), // Today's date
+                        startDate: new Date(),
                         unit: "day",
-                        amount: { $subtract: [7, "$$dayOffset"] }, // Subtract dynamic offset for the last 8 days
+                        amount: { $subtract: [7, "$$dayOffset"] }, 
                       },
                     },
                   },
