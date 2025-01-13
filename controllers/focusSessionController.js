@@ -50,7 +50,7 @@ const getUserSpecificFocusMetrics = async (req, res) => {
     return res.send({success:true,data:JSON.parse(cachedFocusSessions)})
   }
   try {
-    // const specificSessions = await focusSessions.aggregate([
+
     //   {
     //     $facet: {
     //       dailyMetrics: [
